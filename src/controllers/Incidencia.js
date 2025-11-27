@@ -1,23 +1,37 @@
-// controllers/Incidencia.js
 const Incidencia = require('../models/Incidencia');
 const mongoose = require('mongoose');
 const { uploadImageToBlob, deleteImageFromBlob } = require('../utils/azureBlobService');
 require('dotenv');
 
-// Registrar nueva incidencia
 const registrarIncidencia = async (req, res) => {
     try {
         let incidenciaData = req.body;
 
-        // Si hay imagen, subirla a Azure Blob
-        if (req.file) {
+        // Manejo de múltiples imágenes
+        if (req.files && req.files.length > 0) {
+            const imageUrls = [];
+            for (const file of req.files) {
+                const imageUrl = await uploadImageToBlob(file);
+                imageUrls.push(imageUrl);
+            }
+            incidenciaData.imagenes = imageUrls;
+        } else if (req.file) {
+            // Compatibilidad con imagen única
             const imageUrl = await uploadImageToBlob(req.file);
-            incidenciaData.img_url = imageUrl;
+            incidenciaData.imagenes = [imageUrl];
         }
 
         console.log('Datos de incidencia:', incidenciaData);
 
         const incidencia = new Incidencia(incidenciaData);
+
+        // Agregar al historial el estado inicial
+        incidencia.historialEstados = [{
+            estado: 'Pendiente',
+            fecha: new Date(),
+            usuario: incidenciaData.user
+        }];
+
         await incidencia.save();
 
         res.status(200).send({
@@ -30,12 +44,14 @@ const registrarIncidencia = async (req, res) => {
     }
 };
 
-// Obtener incidencias por usuario
 const getIncidenciasByUser = async (req, res) => {
     try {
         const { userId } = req.params;
+        console.log(userId)
         const incidencias = await Incidencia.find({ user: userId })
-            .sort({ createdAt: -1 });
+            .sort({ createdAt: -1 })
+            .populate('user', 'nombre apellido correo')
+            .populate('asigned', 'nombre apellido correo');
         res.status(200).send(incidencias);
     } catch (error) {
         console.error('Error al obtener incidencias:', error);
@@ -43,7 +59,6 @@ const getIncidenciasByUser = async (req, res) => {
     }
 };
 
-// Obtener todas las incidencias (con paginación opcional)
 const getAllIncidencias = async (req, res) => {
     try {
         const { page = 1, limit = 20, estado, gradoSeveridad } = req.query;
@@ -56,14 +71,15 @@ const getAllIncidencias = async (req, res) => {
             .sort({ createdAt: -1 })
             .limit(limit * 1)
             .skip((page - 1) * limit)
-            .populate('user', 'nombre apellido correo');
+            .populate('user', 'nombre apellido correo')
+            .populate('asigned', 'nombre apellido correo');
 
         const total = await Incidencia.countDocuments(query);
 
         res.status(200).send({
             incidencias,
             totalPages: Math.ceil(total / limit),
-            currentPage: page,
+            currentPage: parseInt(page),
             total
         });
     } catch (error) {
@@ -72,12 +88,13 @@ const getAllIncidencias = async (req, res) => {
     }
 };
 
-// Obtener incidencia por ID
 const getIncidenciaById = async (req, res) => {
     try {
         const { id } = req.params;
         const incidencia = await Incidencia.findById(id)
-            .populate('user', 'nombre email');
+            .populate('user', 'nombre apellido correo')
+            .populate('asigned', 'nombre apellido correo')
+            .populate('historialEstados.usuario', 'nombre apellido');
 
         if (!incidencia) {
             return res.status(404).send({ error: 'Incidencia no encontrada' });
@@ -90,27 +107,41 @@ const getIncidenciaById = async (req, res) => {
     }
 };
 
-// Editar incidencia
 const editIncidenciaById = async (req, res) => {
     try {
         const { id } = req.params;
-        let updateData = req.body;
-
-        // Si hay nueva imagen, subir y eliminar la anterior
-        if (req.file) {
+        let updateData = { ...req.body }
+        if (req.files && req.files.length > 0) {
             const incidenciaActual = await Incidencia.findById(id);
-
-            // Eliminar imagen anterior si existe
-            if (incidenciaActual && incidenciaActual.img_url) {
-                await deleteImageFromBlob(incidenciaActual.img_url);
+            if (req.body.replaceImages === 'true') {
+                if (incidenciaActual && incidenciaActual.imagenes && incidenciaActual.imagenes.length > 0) {
+                    for (const imgUrl of incidenciaActual.imagenes) {
+                        await deleteImageFromBlob(imgUrl);
+                    }
+                }
+                const imageUrls = [];
+                for (const file of req.files) {
+                    const imageUrl = await uploadImageToBlob(file);
+                    imageUrls.push(imageUrl);
+                }
+                updateData.imagenes = imageUrls;
+            } else {
+                const newImageUrls = [];
+                for (const file of req.files) {
+                    const imageUrl = await uploadImageToBlob(file);
+                    newImageUrls.push(imageUrl);
+                }
+                updateData.$push = { imagenes: { $each: newImageUrls } };
             }
-
-            // Subir nueva imagen
-            const imageUrl = await uploadImageToBlob(req.file);
-            updateData.img_url = imageUrl;
+        }
+        if (updateData.estado) {
+            updateData.usuarioModificador = req.body.usuarioModificador || req.body.user;
+            updateData.notasEstado = req.body.notasEstado || '';
         }
 
-        const result = await Incidencia.findByIdAndUpdate(id, updateData, { new: true });
+        const result = await Incidencia.findByIdAndUpdate(id, updateData, { new: true })
+            .populate('user', 'nombre apellido correo')
+            .populate('asigned', 'nombre apellido correo');
 
         if (!result) {
             return res.status(404).send({ error: 'Incidencia no encontrada' });
@@ -123,7 +154,6 @@ const editIncidenciaById = async (req, res) => {
     }
 };
 
-// Eliminar incidencia
 const deleteIncidenciaById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -133,9 +163,11 @@ const deleteIncidenciaById = async (req, res) => {
             return res.status(404).send({ error: 'Incidencia no encontrada' });
         }
 
-        // Eliminar imagen si existe
-        if (incidencia.img_url) {
-            await deleteImageFromBlob(incidencia.img_url);
+        // Eliminar todas las imágenes si existen
+        if (incidencia.imagenes && incidencia.imagenes.length > 0) {
+            for (const imgUrl of incidencia.imagenes) {
+                await deleteImageFromBlob(imgUrl);
+            }
         }
 
         await Incidencia.findByIdAndDelete(id);
@@ -147,7 +179,33 @@ const deleteIncidenciaById = async (req, res) => {
     }
 };
 
-// Obtener estadísticas de incidencias
+// NUEVO: Eliminar una imagen específica de una incidencia
+const deleteImageFromIncidencia = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { imageUrl } = req.body;
+
+        const incidencia = await Incidencia.findById(id);
+
+        if (!incidencia) {
+            return res.status(404).send({ error: 'Incidencia no encontrada' });
+        }
+
+        // Eliminar la imagen de Azure
+        await deleteImageFromBlob(imageUrl);
+
+        // Remover la URL del array
+        await Incidencia.findByIdAndUpdate(id, {
+            $pull: { imagenes: imageUrl }
+        });
+
+        res.status(200).send({ ok: 'Imagen eliminada correctamente' });
+    } catch (error) {
+        console.error('Error al eliminar imagen:', error);
+        res.status(500).send({ error: 'Error en el servidor' });
+    }
+};
+
 const getIncidenciasStats = async (req, res) => {
     try {
         const { userId } = req.params;
@@ -172,9 +230,20 @@ const getIncidenciasStats = async (req, res) => {
             }
         ]);
 
+        const porEstado = await Incidencia.aggregate([
+            ...(userId ? [{ $match: { user: new mongoose.Types.ObjectId(userId) } }] : []),
+            {
+                $group: {
+                    _id: '$estado',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
         res.status(200).json({
             porSeveridad: stats,
-            porTipo: porTipo
+            porTipo: porTipo,
+            porEstado: porEstado
         });
     } catch (error) {
         console.error('Error al obtener estadísticas:', error);
@@ -189,5 +258,6 @@ module.exports = {
     getIncidenciaById,
     editIncidenciaById,
     deleteIncidenciaById,
+    deleteImageFromIncidencia,
     getIncidenciasStats
 };

@@ -1,4 +1,3 @@
-// routes/incidencia.js
 const express = require('express');
 const router = express.Router();
 const multer = require('multer');
@@ -11,16 +10,17 @@ const {
     getIncidenciaById,
     editIncidenciaById,
     deleteIncidenciaById,
+    deleteImageFromIncidencia,
     getIncidenciasStats
 } = require('../controllers/Incidencia');
 
-// Rutas
-router.post('/', upload.single('imagen'), registrarIncidencia);
+router.post('/', upload.array('imagenes', 5), registrarIncidencia);
 router.get('/', getAllIncidencias);
 router.get('/user/:userId', getIncidenciasByUser);
 router.get('/stats/:userId?', getIncidenciasStats);
 router.get('/:id', getIncidenciaById);
-router.put('/:id', upload.single('imagen'), editIncidenciaById);
+router.put('/:id', upload.array('imagenes', 5), editIncidenciaById);
 router.delete('/:id', deleteIncidenciaById);
+router.delete('/:id/image', deleteImageFromIncidencia);
 
 module.exports = router;
