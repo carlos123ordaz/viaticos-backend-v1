@@ -40,6 +40,17 @@ const getGastosByGira = async (req, res) => {
     }
 }
 
+const getGastosByUser = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const gastos = await Gasto.find({ user: userId }).sort({ createdAt: -1 }).select('-items');
+        res.status(200).send(gastos);
+    } catch (error) {
+        console.log(error);
+        res.status(500).send({ error: 'Error on server' });
+    }
+}
+
 const editGastoById = async (req, res) => {
     try {
         const { id } = req.params;
@@ -170,26 +181,26 @@ const getGastosByGroupCategoria = async (req, res) => {
 
 const captureVoucher = async (req, res) => {
     try {
-        // return res.status(200).send({
-        //     ruc: '12345678901',
-        //     razon_social: 'Tambo S.A.C.',
-        //     fecha_emision: new Date(),
-        //     descuento: 0,
-        //     total: 165.54,
-        //     moneda: 'PEN',
-        //     igv: 0,
-        //     descripcion: 'Almuerzo de chifa',
-        //     descuento: 0,
-        //     detraccion: 0.12,
-        //     categoria: 'alimentacion',
-        //     detalle_sustento: 'Sustento con IGV',
-        //     items: [
-        //         { descripcion: 'Papa a la huancaina', precio_unitario: 12.5, cantidad: 2, subtotal: 25 },
-        //         { descripcion: 'Arroz con pollo', precio_unitario: 14.0, cantidad: 1, subtotal: 14.0 },
-        //         { descripcion: 'Ceviche', precio_unitario: 16.5, cantidad: 1, subtotal: 16.5 },
-        //     ],
-        //     esValido: true
-        // })
+        return res.status(200).send({
+            ruc: '12345678901',
+            razon_social: 'Tambo S.A.C.',
+            fecha_emision: new Date(),
+            descuento: 0,
+            total: 165.54,
+            moneda: 'PEN',
+            igv: 0,
+            descripcion: 'Almuerzo de chifa',
+            descuento: 0,
+            detraccion: 0.12,
+            categoria: 'alimentacion',
+            detalle_sustento: 'Sustento con IGV',
+            items: [
+                { descripcion: 'Papa a la huancaina', precio_unitario: 12.5, cantidad: 2, subtotal: 25 },
+                { descripcion: 'Arroz con pollo', precio_unitario: 14.0, cantidad: 1, subtotal: 14.0 },
+                { descripcion: 'Ceviche', precio_unitario: 16.5, cantidad: 1, subtotal: 16.5 },
+            ],
+            esValido: true
+        })
 
         if (!req.file) {
             return res.status(400).json({ error: "No file uploaded" });
@@ -225,7 +236,6 @@ const captureVoucher = async (req, res) => {
             await new Promise((resolve) => setTimeout(resolve, 1000));
         }
         const mappedData = mapVoucherData(result);
-        console.log('mapeado: ',mappedData)
         res.json(mappedData);
     } catch (err) {
         console.error(err.response?.data || err.message);
@@ -236,9 +246,9 @@ const captureVoucher = async (req, res) => {
 const mapVoucherData = (ocrResult) => {
     const document = ocrResult?.analyzeResult?.documents?.[0];
     if (!document) {
-        return { 
+        return {
             esValido: false,
-            motivoNoEsValido: "No se pudo extraer información del documento" 
+            motivoNoEsValido: "No se pudo extraer información del documento"
         };
     }
 
@@ -254,10 +264,10 @@ const mapVoucherData = (ocrResult) => {
     }) || [];
 
     const content = ocrResult?.analyzeResult?.content || '';
-    const rucMatch = content.match(/\b\d{11}\b/); 
+    const rucMatch = content.match(/\b\d{11}\b/);
     const vendorRuc = rucMatch ? rucMatch[0] : null;
-    const vendorName = fields.VendorName?.valueString || 
-                       fields.VendorAddressRecipient?.valueString || '';
+    const vendorName = fields.VendorName?.valueString ||
+        fields.VendorAddressRecipient?.valueString || '';
     const cleanVendorName = vendorName.replace(/\n/g, ' ').trim();
 
     return {
@@ -274,9 +284,9 @@ const mapVoucherData = (ocrResult) => {
         igv: fields.TotalTax?.valueCurrency?.amount || 0,
         detraccion: 0,
         total: fields.InvoiceTotal?.valueCurrency?.amount || 0,
-        categoria: 'otros', 
+        categoria: 'otros',
         detalle_sustento: fields.TotalTax?.valueCurrency?.amount > 0 ? 'Sustento con IGV' : 'Sustento sin IGV',
-        descripcion: '', 
+        descripcion: '',
         confianza: document.confidence || null
     };
 };
@@ -287,6 +297,7 @@ module.exports = {
     getGastosByGira,
     getGastosByGroupCategoria,
     editGastoById,
-    getGastoById
+    getGastoById,
+    getGastosByUser
 }
 

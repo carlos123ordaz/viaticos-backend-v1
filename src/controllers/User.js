@@ -9,7 +9,7 @@ const getUserById = async (req, res) => {
         if (!user) {
             return res.status(400).json({ error: 'Usuario no encontrado' });
         }
-        const girasUsuario = await Gira.find({ usuario: user._id, active: true });
+        const girasUsuario = await Gira.find({ user: user._id, active: true });
         return res.status(200).json({ ...user, giras: girasUsuario });
     } catch (error) {
         console.log(error)

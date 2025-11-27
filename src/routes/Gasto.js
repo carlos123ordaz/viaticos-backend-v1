@@ -11,6 +11,7 @@ router.post('/', upload.single('imagen'), registrarGasto);
 router.put('/:id', editGastoById);
 router.get('/:id', getGastoById);
 router.get('/gira/:giraId', getGastosByGira);
+router.get('/user/:userId', getGastosByGira);
 router.get('/gira/:giraId/categoria', getGastosByGroupCategoria);
 
 

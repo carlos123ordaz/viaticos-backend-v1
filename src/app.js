@@ -17,6 +17,7 @@ app.use('/api/usuarios', require('./routes/User'));
 app.use('/api/giras', require('./routes/Gira'));
 app.use('/api/sedes', require('./routes/Sede'));
 app.use('/api/asistencias', require('./routes/Asistencia'));
+app.use('/api/incidencias', require('./routes/incidencia'));
 
 // Solo iniciar servidor si es ejecución directa (local)
 if (require.main === module) {

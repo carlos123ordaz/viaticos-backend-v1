@@ -2,7 +2,7 @@ const { Schema, model } = require('mongoose');
 
 const GiraSchema = Schema({
     task: String,
-    usuario: { type: Schema.Types.ObjectId, ref: 'usuario' },
+    user: { type: Schema.Types.ObjectId, ref: 'user' },
     motivo: String,
     comentario: String,
     semana: String,

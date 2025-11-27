@@ -1,7 +1,7 @@
 const { Schema, model } = require('mongoose');
 
 const AsistenciaSchema = Schema({
-    usuario: { type: Schema.Types.ObjectId, ref: 'usuario' },
+    user: { type: Schema.Types.ObjectId, ref: 'user' },
     entrada: Date,
     salida: Date,
     latitude_entrada: Number,

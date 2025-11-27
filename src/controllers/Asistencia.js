@@ -45,7 +45,7 @@ const insertAsistencia = async (req, res) => {
         );
 
         const asistencia = await Asistencia.findOne({
-            usuario: userId,
+            user: userId,
             createdAt: { $gte: start, $lt: end }
         });
         if (tipo === 'entrada') {
@@ -57,7 +57,7 @@ const insertAsistencia = async (req, res) => {
             const nuevaAsistencia = new Asistencia({
                 fecha: new Date(),
                 entrada: new Date(),
-                usuario: userId,
+                user: userId,
                 sede: user.sede._id,
                 latitude_entrada: latitude,
                 longitude_entrada: longitude,
@@ -142,7 +142,7 @@ const getAsistenciasByDate = async (req, res) => {
         const { start, end } = getRangedate(fecha);
         const asistenciasDia = await Asistencia.find({
             createdAt: { $gte: start, $lt: end }
-        }).populate('usuario sede');
+        }).populate('user sede');
         res.status(200).send(asistenciasDia);
     } catch (error) {
         console.log(error);
@@ -160,7 +160,7 @@ const getAsistenciaByUser = async (req, res) => {
         end.setHours(23, 59, 59, 999);
         const asistencia = await Asistencia.findOne({
             createdAt: { $gte: start, $lt: end },
-            usuario: id
+            user: id
         });
         res.status(200).send(asistencia);
     } catch (error) {

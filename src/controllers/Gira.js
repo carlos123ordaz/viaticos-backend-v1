@@ -14,7 +14,7 @@ const addGira = async (req, res) => {
 
 const getGiras = async (req, res) => {
     try {
-        const giras = await Gira.find({}).sort({ createdAt: -1 }).populate('usuario');
+        const giras = await Gira.find({}).sort({ createdAt: -1 }).populate('user');
         res.status(200).send(giras);
     } catch (error) {
         console.log(error);
@@ -25,7 +25,7 @@ const getGiras = async (req, res) => {
 const getGirasByIdUser = async (req, res) => {
     try {
         const { userId } = req.params;
-        const giras = await Gira.find({ usuario: userId });
+        const giras = await Gira.find({ user: userId });
         return res.status(200).json(giras);
     } catch (error) {
         console.log(error);

@@ -26,6 +26,7 @@ const GastoSchema = Schema({
         }
     ],
     gira: { type: Schema.Types.ObjectId, ref: 'gira' },
+    user: { type: Schema.Types.ObjectId, ref: 'usuario' },
 
 }, {
     timestamps: true
